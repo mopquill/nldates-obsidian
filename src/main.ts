@@ -56,6 +56,13 @@ export default class NaturalLanguageDates extends Plugin {
     });
 
     this.addCommand({
+      id: "nlp-now-utc",
+      name: "Insert the current date and time in UTC",
+      callback: () => this.getNowUTCCommand(),
+      hotkeys: [],
+    });
+
+    this.addCommand({
       id: "nlp-today",
       name: "Insert the current date",
       callback: () => getCurrentDateCommand(this),
@@ -122,6 +129,24 @@ export default class NaturalLanguageDates extends Plugin {
     };
   }
 
+  getMoment(date: Date): any {
+    return (window as any).moment(date);
+  }
+
+  getUTCMoment(date: Date): any {
+    return (window as any).moment.utc(date);
+  }
+
+  getFormattedDate(date: Date): string {
+    var formattedDate = this.getMoment(date).format(this.settings.format);
+    return formattedDate;
+  }
+
+  getFormattedTime(date: Date): string {
+    var formattedTime = this.getMoment(date).format(this.settings.timeFormat);
+    return formattedTime;
+  }
+
   /*
     @param dateString: A string that contains a date in natural language, e.g. today, tomorrow, next week
     @returns NLDResult: An object containing the date, a cloned Moment and the formatted string.
@@ -137,8 +162,98 @@ export default class NaturalLanguageDates extends Plugin {
   async actionHandler(params: ObsidianProtocolData): Promise<void> {
     const { workspace } = this.app;
 
-    const date = this.parseDate(params.day);
-    const newPane = parseTruthy(params.newPane || "yes");
+  onTrigger(mode: string) {
+    let activeLeaf: any = this.app.workspace.activeLeaf;
+    let editor = activeLeaf.view.sourceMode.cmEditor;
+    var cursor = editor.getCursor();
+    var selectedText = this.getSelectedText(editor);
+
+    let date = this.parseDate(selectedText);
+
+    if (!date.moment.isValid()) {
+      editor.setCursor({
+        line: cursor.line,
+        ch: cursor.ch
+      });
+    } else {
+      //mode == "replace"
+      var newStr = `[[${date.formattedString}]]`;
+
+      if (mode == "link") {
+        newStr = `[${selectedText}](${date.formattedString})`;
+      } else if (mode == "clean") {
+        newStr = `${date.formattedString}`;
+      } else if (mode == "time") {
+        let time = this.parseTime(selectedText);
+
+        newStr = `${time.formattedString}`;
+      }
+
+      editor.replaceSelection(newStr);
+      this.adjustCursor(editor, cursor, newStr, selectedText);
+      editor.focus();
+    }
+  }
+
+  adjustCursor(editor: any, cursor: any, newStr: string, oldStr: string) {
+    var cursorOffset = newStr.length - oldStr.length;
+    editor.setCursor({
+      line: cursor.line,
+      ch: cursor.ch + cursorOffset
+    });
+  }
+
+  getNowCommand() {
+    let activeLeaf: any = this.app.workspace.activeLeaf;
+    let editor = activeLeaf.view.sourceMode.cmEditor;
+    editor.replaceSelection(
+      this.getMoment(new Date()).format(
+        `${this.settings.format}${this.settings.separator}${this.settings.timeFormat}`
+      )
+    );
+  }
+
+  getNowUTCCommand() {
+    let activeLeaf: any = this.app.workspace.activeLeaf;
+    let editor = activeLeaf.view.sourceMode.cmEditor;
+    editor.replaceSelection(
+      this.getUTCMoment(new Date()).format(
+        `${this.settings.format}${this.settings.separator}${this.settings.timeFormat}`
+      )
+    );
+  }
+
+  getDateCommand() {
+    let activeLeaf: any = this.app.workspace.activeLeaf;
+    let editor = activeLeaf.view.sourceMode.cmEditor;
+    editor.replaceSelection(
+      this.getMoment(new Date()).format(this.settings.format)
+    );
+  }
+
+  getTimeCommand() {
+    let activeLeaf: any = this.app.workspace.activeLeaf;
+    let editor = activeLeaf.view.sourceMode.cmEditor;
+    editor.replaceSelection(
+      this.getMoment(new Date()).format(this.settings.timeFormat)
+    );
+  }
+
+  insertDateString(dateString: string, editor: any, cursor: any) {
+    editor.replaceSelection(dateString);
+  }
+
+  getDateRange() {}
+
+  async actionHandler(params: any) {
+
+    let date = this.parseDate(params.day);
+    let newPane = this.parseTruthy(params.newPane || "yes");
+
+    console.log(date);
+    const {
+      workspace
+    } = this.app;
 
     if (date.moment.isValid()) {
       const dailyNote = await getOrCreateDailyNote(date.moment);
