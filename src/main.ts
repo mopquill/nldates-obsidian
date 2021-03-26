@@ -88,6 +88,13 @@ export default class NaturalLanguageDates extends Plugin {
     });
 
     this.addCommand({
+      id: "nlp-now-utc",
+      name: "Insert the current date and time in UTC",
+      callback: () => this.getNowUTCCommand(),
+      hotkeys: [],
+    });
+
+    this.addCommand({
       id: "nlp-today",
       name: "Insert the current date",
       callback: () => this.getDateCommand(),
@@ -212,6 +219,10 @@ export default class NaturalLanguageDates extends Plugin {
     return (window as any).moment(date);
   }
 
+  getUTCMoment(date: Date): any {
+    return (window as any).moment.utc(date);
+  }
+
   getFormattedDate(date: Date): string {
     var formattedDate = this.getMoment(date).format(this.settings.format);
     return formattedDate;
@@ -307,6 +318,16 @@ export default class NaturalLanguageDates extends Plugin {
     let editor = activeLeaf.view.sourceMode.cmEditor;
     editor.replaceSelection(
       this.getMoment(new Date()).format(
+        `${this.settings.format}${this.settings.separator}${this.settings.timeFormat}`
+      )
+    );
+  }
+
+  getNowUTCCommand() {
+    let activeLeaf: any = this.app.workspace.activeLeaf;
+    let editor = activeLeaf.view.sourceMode.cmEditor;
+    editor.replaceSelection(
+      this.getUTCMoment(new Date()).format(
         `${this.settings.format}${this.settings.separator}${this.settings.timeFormat}`
       )
     );
